@@ -13,6 +13,11 @@ jobs:
       - name: Set build date
         id: date
         run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+
+      - name: Configure Git
+        run: |
+          git config --global user.name ${{ github.actor }}
+          git config --global user.mail 151834564+melamit@users.noreply.github.com
     
       - name: Clone Folia Git repository
         run: git clone https://github.com/PaperMC/Folia.git ~/folia
