@@ -1,0 +1,60 @@
+name: Build Folia
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *'
+
+jobs: 
+  build-master:
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: Set build date
+        id: date
+        run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
+    
+      - name: Clone Folia Git repository
+        run: git clone https://github.com/PaperMC/Folia.git ~/folia
+
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'oracle'
+          
+      - name: Apply Folia patches
+        run: |
+          cd ~/folia
+          ./gradlew applyPatches
+      
+      - name: Build Folia
+        id: build
+        run: |
+          cd ~/folia
+          ./gradlew createMojmapPaperclipJar
+          echo "::set-output name=name::$(ls ~/folia/build/libs/ | grep paperclip)"
+
+      - name: Create release
+        id: release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.date.outputs.date }}
+          body_path: ~/README.md
+          draft: false
+          prerelease: false
+          
+      - name: Upload build assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} 
+          asset_path: ~/folia/build/libs/${{ steps.build.outputs.name }}
+          asset_name: ${{ steps.build.outputs.name }}
+          asset_content_type: application/java-archive
+    permissions:
+      contents: write
